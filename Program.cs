@@ -1,8 +1,11 @@
 using JwtAspNet;
+using JwtAspNet.Extensions;
 using JwtAspNet.Models;
 using JwtAspNet.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,7 +24,10 @@ builder.Services.AddAuthentication(x =>
         ValidateAudience = false
     };
 });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(x =>
+{
+    x.AddPolicy("admin", p => p.RequireRole("admin"));
+});
 
 var app = builder.Build();
 app.UseAuthentication();
@@ -32,15 +38,23 @@ app.MapGet("/login", (TokenService service) =>
     var roles = new string[]
     {
         "user",
-        "admin"
+        "major"
     };
     var user = new User(1, "Lucas Andrade", "lucasilva108@gmail.com", "https://profile-image.com/", "12341234", roles);
     return service.Create(user);
 });
 
-app.MapGet("/restrito", () =>
+app.MapGet("/restrito", (ClaimsPrincipal user) =>
 {
-    return "Você tem acesso";
+    return new
+    {
+        Id = user.Id(),
+        Name = user.Name(),
+        Email = user.Email(),
+        GivenName = user.GivenName(),
+        Image = user.Image(),
+    };
 }).RequireAuthorization();
+app.MapGet("/admin", () => "Você tem acesso admin").RequireAuthorization("admin");
 
 app.Run();
